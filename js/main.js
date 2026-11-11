@@ -784,7 +784,7 @@ function moveTo(seat) {
 
 function skipWalk() {
   if (!viewer || !viewer.busyWalking) return;
-  viewer.glideTo(state.current, 0.75);
+  viewer.glideTo(state.current, 1.1);
 }
 
 async function shareSeat() {

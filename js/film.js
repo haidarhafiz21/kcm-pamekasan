@@ -133,6 +133,7 @@ uniform float uHorizon;
 uniform float uSunX;
 uniform vec3 uBoatPos;   // x, y garis air (uv), tinggi sprite (satuan tinggi layar)
 uniform float uRock;
+uniform float uBright;
 varying vec2 vUv;
 
 float hash(vec2 p) {
@@ -213,7 +214,7 @@ void main() {
   vec2 cv = (uv - 0.5) * vec2(uAspect, 1.0);
   col *= mix(1.0, 0.66, smoothstep(0.35, 1.3, length(cv)));
 
-  gl_FragColor = vec4(col, 1.0);
+  gl_FragColor = vec4(col * uBright, 1.0);
   #include <colorspace_fragment>
 }`;
 
@@ -234,11 +235,15 @@ export function createFilm(renderer) {
     uSunX: { value: SUN_X },
     uBoatPos: { value: new THREE.Vector3(0.3, 0.18, 0.2) },
     uRock: { value: 0 },
+    uBright: { value: 1 },
   };
   const material = new THREE.ShaderMaterial({ uniforms, vertexShader, fragmentShader, toneMapped: false });
 
   return {
     material,
+    setBright(b) {
+      uniforms.uBright.value = b;
+    },
     update(t) {
       uniforms.uTime.value = t;
       const cycle = 70;

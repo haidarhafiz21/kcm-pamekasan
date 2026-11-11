@@ -40,7 +40,8 @@ klik dua kali tidak bisa, karena modul JavaScript butuh server.)
 | `css/style.css` | Tampilan |
 | `js/cinemas.js` | **Data bioskop & studio — edit di sini** |
 | `js/layout.js` | Posisi kursi, jarak, sudut pandang, skor kenyamanan, jalur jalan |
-| `js/viewer.js` | Ruang studio 3D, animasi berjalan & duduk |
+| `js/viewer.js` | Ruang studio 3D, lampu, kamera sinematik |
+| `js/walker.js` | Tokoh kecil yang berjalan | `js/viewer.js` | Ruang studio 3D, animasi berjalan & duduk | duduk |
 | `js/film.js` | Adegan di layar (senja di pantai Madura), dihitung di GPU |
 | `js/main.js` | Peta kursi, panel, navigasi |
 | `vendor/three/` | Three.js r160 (lisensi MIT) |

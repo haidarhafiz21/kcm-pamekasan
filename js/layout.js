@@ -198,7 +198,7 @@ export function describe(m) {
 }
 
 // ───────── jalur jalan ─────────
-export function walkPath(layout, seat) {
+export function walkPath(layout, seat, { toLane = false } = {}) {
   const { door, aisles, rows, studio, spec } = layout;
   const row = rows[seat.rowIndex];
   const pitch = studio.rowPitch;
@@ -225,6 +225,8 @@ export function walkPath(layout, seat) {
     { x: seat.x, z: laneZ },
     { x: seat.x, z: seat.eye.z },
   ];
+  // tokoh berhenti di depan kursi, lalu duduk dengan animasi sendiri
+  if (toLane) pts.pop();
   return { points: fillet(dedupe(pts)), raw: pts, aisle, laneZ };
 }
 
