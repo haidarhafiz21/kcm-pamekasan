@@ -1,11 +1,22 @@
-import { STUDIOS, CINEMA } from './studios.js';
+import { CINEMAS, DEFAULT_CINEMA } from './cinemas.js';
 import { buildLayout, fmt1, fmtRp, offsetText, describe } from './layout.js';
 
 const $ = (id) => document.getElementById(id);
 const SVGNS = 'http://www.w3.org/2000/svg';
 const html = document.documentElement;
+const coarse = matchMedia('(pointer: coarse)').matches;
 
 const el = {
+  brandMark: $('brandMark'),
+  brandCity: $('brandCity'),
+  venuePick: $('venuePick'),
+  venueName: $('venueName'),
+  venueAddr: $('venueAddr'),
+  venueMap: $('venueMap'),
+  venueBadge: $('venueBadge'),
+  picker: $('picker'),
+  pickerSearch: $('pickerSearch'),
+  pickerList: $('pickerList'),
   tabs: $('tabs'),
   studioName: $('studioName'),
   studioMeta: $('studioMeta'),
@@ -64,12 +75,15 @@ const store = {
 };
 
 const layouts = new Map();
-const getLayout = (i) => {
-  if (!layouts.has(i)) layouts.set(i, buildLayout(STUDIOS[i]));
-  return layouts.get(i);
+const getLayout = (ci, i) => {
+  const key = `${ci}:${i}`;
+  if (!layouts.has(key)) layouts.set(key, buildLayout(CINEMAS[ci].studios[i]));
+  return layouts.get(key);
 };
+const cinemaSeats = (ci) => CINEMAS[ci].studios.reduce((n, _, i) => n + getLayout(ci, i).seats.length, 0);
 
 const state = {
+  ci: 0,
   idx: 0,
   L: null,
   heat: store.get('kcm-heat') === '1',
@@ -81,17 +95,31 @@ const state = {
   seated: false,
   hintShown: false,
   shown: null,
+  picker: false,
 };
+const cinema = () => CINEMAS[state.ci];
 
 // ───────── util ─────────
-const seatCount = (i) => getLayout(i).seats.length;
-const hashFor = (L, seat) => `#/${L.studio.id}/${seat.id}`;
+const cinemaIndex = (id) => CINEMAS.findIndex((c) => c.id === id);
+const baseHash = () => `#/${cinema().id}/${state.L.studio.id}`;
+const hashFor = (seat) => `${baseHash()}/${seat.id}`;
+
+// #/<bioskop>/<studio>/<kursi>; juga menerima tautan lama #/<studio>/<kursi>
 function parseHash() {
-  const m = location.hash.match(/^#\/([\w-]+)(?:\/([A-Z]\d+))?/i);
-  if (!m) return null;
-  const idx = STUDIOS.findIndex((s) => s.id === m[1]);
-  if (idx < 0) return null;
-  return { idx, seatId: m[2] ? m[2].toUpperCase() : null };
+  const segs = location.hash.replace(/^#\/?/, '').split('/').filter(Boolean);
+  if (!segs.length) return null;
+  let ci = cinemaIndex(segs[0]);
+  let rest = segs.slice(1);
+  if (ci < 0) {
+    ci = cinemaIndex(DEFAULT_CINEMA);
+    rest = segs;
+  }
+  if (ci < 0) return null;
+  const studios = CINEMAS[ci].studios;
+  let idx = rest[0] ? studios.findIndex((s) => s.id === rest[0]) : 0;
+  const seatId = idx >= 0 && rest[1] ? rest[1].toUpperCase() : null;
+  if (idx < 0) idx = 0;
+  return { ci, idx, seatId };
 }
 
 const HEAT = [
@@ -127,43 +155,157 @@ function svg(tag, attrs = {}, parent) {
   return n;
 }
 
-const subtitle = (st) => `${st.name} · ${st.type}${st.price ? ' · ' + fmtRp(st.price) : ''}`;
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+const fold = (s) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+const mapsUrl = (c) => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${c.name}, ${c.address}`)}`;
+const subtitle = (st) => `${cinema().name} · ${st.name}${st.price ? ' · ' + fmtRp(st.price) : ''}`;
 const bestSeats = (L, n = 6) =>
   [...L.seats].sort((a, b) => b.m.score - a.m.score || Math.abs(a.x) - Math.abs(b.x)).slice(0, n);
 
-// ───────── tab studio ─────────
-function renderTabs() {
-  el.tabs.innerHTML = '';
-  STUDIOS.forEach((st, i) => {
-    const b = document.createElement('button');
-    b.className = 'tab';
-    b.setAttribute('role', 'tab');
-    b.setAttribute('aria-selected', String(i === state.idx));
-    b.innerHTML = `<b>${st.name}</b><span>${st.type} · ${seatCount(i)} kursi</span>`;
-    b.addEventListener('click', () => selectStudio(i));
-    el.tabs.appendChild(b);
+function lock() {
+  html.classList.toggle('lock', state.open || state.picker);
+}
+
+// ───────── bioskop ─────────
+function renderVenue() {
+  const c = cinema();
+  el.brandMark.textContent = c.brand;
+  el.brandCity.textContent = c.city;
+  el.venueName.textContent = c.name;
+  el.venueAddr.textContent = c.address;
+  el.venueMap.href = mapsUrl(c);
+  el.venueBadge.hidden = !!c.verified;
+  document.title = `${c.name} · Lihat dari Kursi`;
+}
+
+function selectCinema(ci, { instant = false, studioIdx = 0, keepHash = false } = {}) {
+  const changed = ci !== state.ci;
+  state.ci = ci;
+  store.set('kcm-cinema', CINEMAS[ci].id);
+  renderVenue();
+  renderTabs(studioIdx);
+  selectStudio(studioIdx, { instant: instant || !changed, force: true, keepHash });
+}
+
+// ───────── pemilih bioskop ─────────
+function renderPicker(q = '') {
+  const f = fold(q.trim());
+  const list = CINEMAS.map((c, i) => ({ c, i })).filter(
+    ({ c }) => !f || fold(`${c.name} ${c.city} ${c.province} ${c.address}`).includes(f)
+  );
+  el.pickerList.innerHTML = '';
+  if (!list.length) {
+    el.pickerList.innerHTML = `<p class="pk-empty">Belum ada bioskop untuk “${esc(q.trim())}”.</p>`;
+    return;
+  }
+  const groups = new Map();
+  for (const item of list) {
+    if (!groups.has(item.c.province)) groups.set(item.c.province, []);
+    groups.get(item.c.province).push(item);
+  }
+  for (const [prov, items] of groups) {
+    const g = document.createElement('div');
+    g.className = 'pk-group';
+    g.innerHTML = `<h4>${esc(prov)}</h4>`;
+    for (const { c, i } of items) {
+      const b = document.createElement('button');
+      b.className = 'pk-item';
+      b.setAttribute('role', 'option');
+      b.setAttribute('aria-selected', String(i === state.ci));
+      b.innerHTML = `
+        <span class="pk-name">${esc(c.name)}</span>
+        <span class="pk-addr">${esc(c.address)}</span>
+        <span class="pk-meta">${c.studios.length} studio<br>${cinemaSeats(i)} kursi</span>`;
+      b.addEventListener('click', () => {
+        closePicker();
+        if (i !== state.ci) selectCinema(i);
+      });
+      g.appendChild(b);
+    }
+    el.pickerList.appendChild(g);
+  }
+}
+
+function openPicker() {
+  if (state.picker) return;
+  state.picker = true;
+  lock();
+  el.pickerSearch.value = '';
+  renderPicker();
+  el.picker.hidden = false;
+  requestAnimationFrame(() => {
+    el.picker.classList.add('open');
+    const cur = el.pickerList.querySelector('[aria-selected="true"]');
+    cur?.scrollIntoView({ block: 'nearest' });
+    if (!coarse) el.pickerSearch.focus({ preventScroll: true });
+    else cur?.focus({ preventScroll: true });
   });
 }
 
-function selectStudio(i, { instant = false } = {}) {
-  if (i === state.idx && state.L) return;
+function closePicker({ refocus = true } = {}) {
+  if (!state.picker) return;
+  state.picker = false;
+  lock();
+  el.picker.classList.remove('open');
+  setTimeout(() => {
+    if (!state.picker) el.picker.hidden = true;
+  }, 320);
+  if (refocus) el.venuePick.focus({ preventScroll: true });
+}
+
+function bindPicker() {
+  el.venuePick.addEventListener('click', openPicker);
+  el.picker.addEventListener('click', (e) => {
+    if (e.target.closest('[data-close]')) closePicker();
+  });
+  el.pickerSearch.addEventListener('input', () => renderPicker(el.pickerSearch.value));
+  el.pickerSearch.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter') return;
+    // cegah Enter ikut "menekan" tombol Ganti yang menerima fokus setelah dialog tertutup
+    e.preventDefault();
+    el.pickerList.querySelector('.pk-item')?.click();
+  });
+}
+
+// ───────── tab studio ─────────
+function renderTabs(active = state.idx) {
+  el.tabs.innerHTML = '';
+  cinema().studios.forEach((st, i) => {
+    const b = document.createElement('button');
+    b.className = 'tab';
+    b.setAttribute('role', 'tab');
+    b.setAttribute('aria-selected', String(i === active));
+    b.innerHTML = `<b>${esc(st.name)}</b><span>${esc(st.type)} · ${getLayout(state.ci, i).seats.length} kursi</span>`;
+    b.addEventListener('click', () => selectStudio(i));
+    el.tabs.appendChild(b);
+  });
+  el.tabs.scrollLeft = 0;
+}
+
+function selectStudio(i, { instant = false, force = false, keepHash = false } = {}) {
+  if (!force && i === state.idx && state.L) return;
   state.idx = i;
-  state.L = getLayout(i);
+  state.L = getLayout(state.ci, i);
   state.hover = null;
   [...el.tabs.children].forEach((b, k) => b.setAttribute('aria-selected', String(k === i)));
   const st = state.L.studio;
   el.studioName.textContent = st.name;
-  const sc = st.screen;
-  el.studioMeta.textContent = `${st.type} · ${state.L.seats.length} kursi · layar ${fmt1(sc.width)} m`;
+  el.studioMeta.textContent = `${st.type} · ${state.L.seats.length} kursi · layar ${fmt1(st.screen.width)} m`;
+  if (!keepHash) history.replaceState(null, '', baseHash());
+  const L = state.L;
   const apply = () => {
+    if (state.L !== L) return;
     renderMap(true);
     renderBest();
-    setPreview(bestSeats(state.L, 1)[0], 'Rekomendasi');
+    setPreview(bestSeats(L, 1)[0], 'Rekomendasi');
   };
-  if (instant) apply();
-  else {
+  clearTimeout(selectStudio.t);
+  if (instant) {
+    el.map.classList.remove('swap');
+    apply();
+  } else {
     el.map.classList.add('swap');
-    setTimeout(() => {
+    selectStudio.t = setTimeout(() => {
       apply();
       requestAnimationFrame(() => el.map.classList.remove('swap'));
     }, 180);
@@ -193,7 +335,6 @@ function renderMap(recenter = false) {
   el.map.style.height = `${H}px`;
   el.map.classList.toggle('heat', state.heat);
 
-  // denah dasar
   const plan = svg('svg', { class: 'plan', width: W, height: H, viewBox: `0 0 ${W} ${H}` }, el.map);
   const wall = { stroke: '#34302d', 'stroke-width': 1.5, fill: 'none', 'stroke-linecap': 'round' };
   const dz0 = Y(door.z - door.width / 2);
@@ -211,7 +352,6 @@ function renderMap(recenter = false) {
   }
   svg('path', { d: `M0.75 ${Y(room.backZ)} H${W - 0.75}`, ...wall }, plan);
 
-  // undakan
   rows.forEach((r, i) => {
     const prev = i ? rows[i - 1].floor : 0;
     if (r.floor > prev + 0.001) {
@@ -220,7 +360,6 @@ function renderMap(recenter = false) {
     }
   });
 
-  // layar
   const sx0 = X(-screen.width / 2);
   const sx1 = X(screen.width / 2);
   const sy = Y(0);
@@ -230,7 +369,6 @@ function renderMap(recenter = false) {
   const lt = svg('text', { x: W / 2, y: sy + 26, 'text-anchor': 'middle', fill: '#5e5853', 'font-size': 10.5, 'letter-spacing': '0.24em', 'font-weight': 600 }, plan);
   lt.textContent = `LAYAR · ${fmt1(screen.width)} M`;
 
-  // kursi
   const sw = studio.seatWidth * u;
   const d = Math.max(12, spec.depth * u * 0.86);
   const frag = document.createDocumentFragment();
@@ -248,11 +386,7 @@ function renderMap(recenter = false) {
   });
   el.map.appendChild(frag);
 
-  // label baris
-  for (const [box, side] of [
-    [el.labelsL, 0],
-    [el.labelsR, 1],
-  ]) {
+  for (const box of [el.labelsL, el.labelsR]) {
     box.innerHTML = '';
     box.style.height = `${H}px`;
     rows.forEach((r) => {
@@ -262,7 +396,6 @@ function renderMap(recenter = false) {
       s.style.top = `${Y(r.z)}px`;
       box.appendChild(s);
     });
-    void side;
   }
 
   el.mapCard.classList.toggle('heat-on', state.heat);
@@ -364,7 +497,6 @@ function statHtml(m) {
 function setPreview(seat, kicker) {
   if (!seat || state.hover === seat) return;
   state.hover = seat;
-  el.map.querySelectorAll('.seat.is-hover').forEach((b) => b.classList.remove('is-hover'));
   const m = seat.m;
   el.preview.innerHTML = `
     <p class="pv-kicker">${kicker}</p>
@@ -560,6 +692,7 @@ function updateNav() {
 
 async function openSeat(seat, { fromHash = false } = {}) {
   if (state.open) return;
+  if (state.picker) closePicker({ refocus: false });
   const L = state.L;
   state.open = true;
   state.current = seat;
@@ -568,11 +701,11 @@ async function openSeat(seat, { fromHash = false } = {}) {
 
   if (fromHash) state.pushed = false;
   else {
-    history.pushState({ kcmSeat: true }, '', hashFor(L, seat));
+    history.pushState({ kcmSeat: true }, '', hashFor(seat));
     state.pushed = true;
   }
 
-  html.classList.add('lock');
+  lock();
   el.viewer.hidden = false;
   el.fade.classList.remove('out');
   el.fallback.hidden = true;
@@ -602,6 +735,8 @@ async function openSeat(seat, { fromHash = false } = {}) {
   v.setInset(0);
   const { path } = v.walkTo(seat);
   drawMini(el.walkMini, L, seat, path);
+  await v.prepare();
+  if (!state.open || state.current !== seat) return;
   v.start();
   requestAnimationFrame(() => requestAnimationFrame(() => el.fade.classList.add('out')));
 }
@@ -617,10 +752,10 @@ function closeViewer({ fromPop = false } = {}) {
     el.viewer.hidden = true;
     viewer?.stop();
   }, 380);
-  html.classList.remove('lock');
+  lock();
   if (!fromPop) {
     if (state.pushed) history.back();
-    else history.replaceState(null, '', location.pathname + location.search);
+    else history.replaceState(null, '', baseHash());
   }
   state.pushed = false;
 
@@ -644,7 +779,7 @@ function moveTo(seat) {
   state.current = seat;
   viewer.glideTo(seat);
   fillSheet(seat, true);
-  history.replaceState(history.state, '', hashFor(state.L, seat));
+  history.replaceState(history.state, '', hashFor(seat));
 }
 
 function skipWalk() {
@@ -656,10 +791,10 @@ async function shareSeat() {
   const seat = state.current;
   if (!seat) return;
   const url = location.href;
-  const text = `Aku lihat dari kursi ${seat.id} di ${state.L.studio.name} ${CINEMA.name}.`;
+  const text = `Aku lihat dari kursi ${seat.id} di ${state.L.studio.name} ${cinema().name}.`;
   if (navigator.share) {
     try {
-      await navigator.share({ title: `${CINEMA.name} · ${seat.id}`, text, url });
+      await navigator.share({ title: `${cinema().name} · ${seat.id}`, text, url });
       return;
     } catch (e) {
       if (e && e.name === 'AbortError') return;
@@ -682,6 +817,17 @@ async function shareSeat() {
       toast(url);
     }
     ta.remove();
+  }
+}
+
+function applyHash(h) {
+  if (!h) return;
+  if (h.ci !== state.ci) selectCinema(h.ci, { instant: true, studioIdx: h.idx, keepHash: true });
+  else if (h.idx !== state.idx) selectStudio(h.idx, { instant: true, keepHash: true });
+  if (h.seatId) {
+    const seat = state.L.byId.get(h.seatId);
+    if (seat) openSeat(seat, { fromHash: true });
+    else history.replaceState(null, '', baseHash());
   }
 }
 
@@ -720,6 +866,10 @@ function bindViewer() {
   new ResizeObserver(() => updateInset()).observe(el.sheet);
 
   document.addEventListener('keydown', (e) => {
+    if (state.picker) {
+      if (e.key === 'Escape') closePicker();
+      return;
+    }
     if (!state.open) return;
     if (e.key === 'Escape') return closeViewer();
     if (!state.seated) {
@@ -739,12 +889,12 @@ function bindViewer() {
 
   window.addEventListener('popstate', () => {
     const h = parseHash();
-    if (state.open && !(h && h.seatId)) closeViewer({ fromPop: true });
-    else if (!state.open && h && h.seatId) {
-      if (h.idx !== state.idx) selectStudio(h.idx, { instant: true });
-      const seat = state.L.byId.get(h.seatId);
-      if (seat) openSeat(seat, { fromHash: true });
+    if (state.open) {
+      if (!(h && h.seatId)) closeViewer({ fromPop: true });
+      return;
     }
+    if (state.picker) closePicker();
+    applyHash(h);
   });
 
   document.addEventListener('visibilitychange', () => {
@@ -757,20 +907,19 @@ function bindViewer() {
 // ───────── mulai ─────────
 function init() {
   const h = parseHash();
-  state.idx = h ? h.idx : 0;
-  state.L = null;
+  let ci = h ? h.ci : cinemaIndex(store.get('kcm-cinema') || '');
+  if (ci < 0) ci = Math.max(0, cinemaIndex(DEFAULT_CINEMA));
+  state.ci = ci;
   el.heat.setAttribute('aria-checked', String(state.heat));
-  renderTabs();
+  bindPicker();
   bindMap();
   bindViewer();
-  const target = state.idx;
-  state.idx = -1;
-  selectStudio(target, { instant: true });
+  selectCinema(ci, { instant: true, studioIdx: h ? h.idx : 0, keepHash: !!(h && h.seatId) });
 
   if (h && h.seatId) {
     const seat = state.L.byId.get(h.seatId);
     if (seat) openSeat(seat, { fromHash: true });
-    else history.replaceState(null, '', location.pathname + location.search);
+    else history.replaceState(null, '', baseHash());
   }
 
   const idle = window.requestIdleCallback || ((f) => setTimeout(f, 1200));

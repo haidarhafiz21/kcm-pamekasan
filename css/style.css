@@ -916,3 +916,273 @@ p {
   -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 22px, #000 calc(100% - 22px), transparent 100%);
   mask-image: linear-gradient(90deg, transparent 0, #000 22px, #000 calc(100% - 22px), transparent 100%);
 }
+
+/* ───────── bioskop terpilih ───────── */
+.venue {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px 24px;
+  flex-wrap: wrap;
+  padding: 0 0 20px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--line);
+}
+.venue-pick {
+  display: grid;
+  gap: 2px;
+  text-align: left;
+  min-width: 0;
+  max-width: 100%;
+  border-radius: 12px;
+  padding: 6px 8px 6px 0;
+}
+.venue-label {
+  font-size: 12px;
+  color: var(--faint);
+}
+.venue-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.venue-row b {
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  line-height: 1.2;
+}
+.venue-change {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 28px;
+  padding: 0 10px 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--line-2);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted);
+  transition: border-color 0.2s var(--ease), color 0.2s var(--ease), background 0.2s var(--ease);
+}
+.venue-pick:hover .venue-change {
+  border-color: var(--accent);
+  color: var(--text);
+  background: rgba(233, 179, 90, 0.08);
+}
+.venue-addr {
+  font-size: 13.5px;
+  color: var(--muted);
+}
+.venue-side {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding-bottom: 6px;
+}
+.badge {
+  font-size: 12px;
+  color: var(--muted);
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  border: 1px dashed var(--line-2);
+}
+.badge[hidden] {
+  display: none;
+}
+.venue-map {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--text);
+  text-decoration: none;
+  padding: 6px 0;
+}
+.venue-map:hover {
+  color: var(--accent);
+}
+
+/* ───────── dialog pilih bioskop ───────── */
+.picker {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+}
+.picker[hidden] {
+  display: none;
+}
+.picker-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.62);
+  opacity: 0;
+  transition: opacity 0.3s var(--ease);
+}
+.picker.open .picker-backdrop {
+  opacity: 1;
+}
+.picker-panel {
+  position: absolute;
+  left: 50%;
+  top: 9vh;
+  width: min(540px, calc(100% - 32px));
+  max-height: 82vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  overflow: hidden;
+  opacity: 0;
+  transform: translate(-50%, 14px) scale(0.985);
+  transition: opacity 0.3s var(--ease), transform 0.3s var(--ease);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5);
+}
+.picker.open .picker-panel {
+  opacity: 1;
+  transform: translate(-50%, 0) scale(1);
+}
+.picker-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 16px 4px 20px;
+}
+.picker-head h2 {
+  font-size: 18px;
+  font-weight: 600;
+}
+.search {
+  position: relative;
+  display: block;
+  margin: 10px 16px 6px;
+  color: var(--faint);
+}
+.search svg {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+.search input {
+  width: 100%;
+  height: 46px;
+  padding: 0 14px 0 40px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  font-size: 16px;
+  outline: none;
+  transition: border-color 0.2s var(--ease);
+}
+.search input::placeholder {
+  color: var(--faint);
+}
+.search input:focus {
+  border-color: var(--line-2);
+}
+.picker-list {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0 8px 14px;
+  -webkit-overflow-scrolling: touch;
+}
+.pk-group h4 {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  margin: 0;
+  padding: 14px 12px 6px;
+  background: var(--surface);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+.pk-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px 16px;
+  width: 100%;
+  padding: 12px;
+  border-radius: 12px;
+  text-align: left;
+  transition: background 0.15s var(--ease);
+}
+.pk-item:hover {
+  background: var(--surface-2);
+}
+.pk-name {
+  font-weight: 600;
+  font-size: 15.5px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.pk-item[aria-selected='true'] .pk-name::after {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 3px rgba(233, 179, 90, 0.18);
+}
+.pk-addr {
+  grid-column: 1;
+  font-size: 13px;
+  color: var(--muted);
+}
+.pk-meta {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+  text-align: right;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--faint);
+  white-space: nowrap;
+}
+.pk-empty {
+  padding: 28px 12px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+@media (max-width: 600px) {
+  .venue {
+    padding-bottom: 16px;
+    margin-bottom: 16px;
+  }
+  .venue-row b {
+    font-size: 21px;
+  }
+  .picker-panel {
+    top: auto;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    max-height: 88vh;
+    max-height: 88dvh;
+    border-radius: 22px 22px 0 0;
+    border-bottom: 0;
+    opacity: 1;
+    transform: translateY(100%);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .picker.open .picker-panel {
+    transform: translateY(0);
+  }
+}
+.pk-item {
+  scroll-margin: 44px 0 8px;
+}

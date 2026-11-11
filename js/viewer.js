@@ -33,12 +33,12 @@ function canvasTexture(w, h, paint, repeat = false) {
 }
 
 function makeTextures() {
-  const carpet = canvasTexture(256, 256, (g, w, h) => {
+  const carpet = canvasTexture(512, 512, (g, w, h) => {
     g.fillStyle = '#1d1a20';
     g.fillRect(0, 0, w, h);
     let seed = 3;
     const r = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
-    for (let i = 0; i < 2600; i++) {
+    for (let i = 0; i < 10400; i++) {
       const v = r();
       g.fillStyle = v > 0.6 ? 'rgba(90,70,95,0.35)' : 'rgba(0,0,0,0.35)';
       g.fillRect(r() * w, r() * h, 1.4, 1.4);
@@ -46,14 +46,14 @@ function makeTextures() {
     // motif garis halus
     g.strokeStyle = 'rgba(140,96,60,0.12)';
     g.lineWidth = 2;
-    for (let i = -w; i < w * 2; i += 64) {
+    for (let i = -w; i < w * 2; i += 128) {
       g.beginPath();
       g.moveTo(i, 0);
       g.lineTo(i + h, h);
       g.stroke();
     }
   }, true);
-  carpet.anisotropy = 4;
+  carpet.anisotropy = 8;
 
   const glow = canvasTexture(128, 128, (g, w, h) => {
     const rg = g.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2);
@@ -128,9 +128,14 @@ export class SeatViewer {
   constructor(canvas, hooks = {}) {
     this.canvas = canvas;
     this.hooks = hooks;
-    const coarse = matchMedia('(pointer: coarse)').matches;
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, coarse ? 1.75 : 2));
+    // resolusi adaptif: mulai setajam mungkin (maks 2x), turun otomatis bila
+    // perangkat tidak sanggup 60 fps, naik lagi bila kembali lancar
+    this.prMax = Math.min(window.devicePixelRatio || 1, 2);
+    this.prMin = Math.min(1, this.prMax);
+    this.pr = this.prMax;
+    this.perf = { acc: 0, frames: 0, good: 0, warm: 0 };
+    this.renderer.setPixelRatio(this.pr);
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.05;
@@ -142,11 +147,8 @@ export class SeatViewer {
 
     this.tex = makeTextures();
     this.mat = makeMaterials(this.tex);
-    this.film = createFilm();
-    this.filmTex = new THREE.CanvasTexture(this.film.canvas);
-    this.filmTex.colorSpace = THREE.SRGBColorSpace;
-    this.filmTex.anisotropy = this.renderer.capabilities.getMaxAnisotropy();
-    this.screenMat = new THREE.MeshBasicMaterial({ map: this.filmTex, toneMapped: false });
+    this.film = createFilm(this.renderer);
+    this.screenMat = this.film.material;
 
     this.root = new THREE.Group();
     this.scene.add(this.root);
@@ -159,7 +161,6 @@ export class SeatViewer {
     this.seat = null;
     this.running = false;
     this.time = 0;
-    this.filmClock = 0;
     this.size = { w: 0, h: 0 };
     this.clock = new THREE.Clock(false);
 
@@ -617,10 +618,10 @@ export class SeatViewer {
           const phase = (s / 0.74) * Math.PI;
           const nx = -p.dz;
           const nz = p.dx;
-          const sway = Math.sin(phase) * 0.012 * spd;
+          const sway = Math.sin(phase) * 0.008 * spd;
           P.x = p.x + nx * sway;
           P.z = p.z + nz * sway;
-          P.y = floorFor(p.x, p.z) + STAND_EYE + Math.sin(phase * 2) * 0.022 * spd;
+          P.y = floorFor(p.x, p.z) + STAND_EYE + Math.sin(phase * 2) * 0.016 * spd;
           const d = desired(s, p);
           const k = damp(7, dt);
           P.yaw = lerpAngle(P.yaw, d.yaw, k);
@@ -739,6 +740,7 @@ export class SeatViewer {
   start() {
     if (this.running) return;
     this.running = true;
+    this.perf.warm = this.perf.acc = this.perf.frames = 0;
     this.clock.start();
     this._resize();
     requestAnimationFrame(this._loop);
@@ -749,24 +751,58 @@ export class SeatViewer {
     this.clock.stop();
   }
 
-  renderOnce() {
+  // kompilasi shader & unggah tekstur sebelum animasi dimulai,
+  // agar langkah pertama tidak tersendat
+  async prepare() {
     this._resize();
     this._apply(0);
+    this.film.update(this.time);
+    try {
+      if (this.renderer.compileAsync) await this.renderer.compileAsync(this.scene, this.camera);
+      else this.renderer.compile(this.scene, this.camera);
+    } catch {
+      /* lanjut saja */
+    }
     this.renderer.render(this.scene, this.camera);
+  }
+
+  _governor(raw) {
+    const P = this.perf;
+    if (P.warm < 0.8) {
+      P.warm += raw;
+      return;
+    }
+    P.acc += raw;
+    P.frames++;
+    if (P.acc < 1) return;
+    const avg = P.acc / P.frames;
+    P.acc = 0;
+    P.frames = 0;
+    let next = this.pr;
+    if (avg > 1 / 45 && this.pr > this.prMin) {
+      next = Math.max(this.prMin, this.pr - 0.25);
+      P.good = 0;
+    } else if (avg < 1 / 56) {
+      if (++P.good >= 3 && this.pr < this.prMax) {
+        next = Math.min(this.prMax, this.pr + 0.25);
+        P.good = 0;
+      }
+    } else P.good = 0;
+    if (next !== this.pr) {
+      this.pr = next;
+      this.renderer.setPixelRatio(next);
+      this.renderer.setSize(this.size.w, this.size.h, false);
+    }
   }
 
   _loop() {
     if (!this.running) return;
     requestAnimationFrame(this._loop);
-    const dt = Math.min(this.clock.getDelta(), 1 / 15);
+    const raw = this.clock.getDelta();
+    const dt = Math.min(raw, 1 / 15);
     this.time += dt;
-
-    this.filmClock += dt;
-    if (this.filmClock > 1 / 30) {
-      this.filmClock = 0;
-      this.film.draw(this.time);
-      this.filmTex.needsUpdate = true;
-    }
+    this._governor(raw);
+    this.film.update(this.time);
 
     if (this.anim) {
       if (this.anim.update(dt)) {

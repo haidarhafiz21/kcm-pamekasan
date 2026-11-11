@@ -1,21 +1,27 @@
-# KCM Pamekasan · Lihat dari Kursi
+# KCM · Lihat dari Kursi
 
-Website visualisasi kursi bioskop. Pengunjung mengetuk kursi, lalu diajak
-"berjalan" dari pintu masuk sampai duduk dan melihat layar dari posisi itu,
-lengkap dengan jarak ke layar, luas pandangan, dan posisi dari tengah.
+Website visualisasi kursi bioskop. Pengunjung memilih bioskop (cabang/kota),
+memilih studio, lalu mengetuk kursi dan diajak "berjalan" dari pintu masuk
+sampai duduk untuk melihat layar dari posisi itu, lengkap dengan jarak ke
+layar, luas pandangan, dan posisi dari tengah.
 
 Website statis murni (HTML + CSS + JavaScript, tanpa server dan tanpa build).
 
-## Menyesuaikan ukuran studio
+## Menambah bioskop & menyesuaikan studio
 
-Semua data ada di **`js/studios.js`**: jumlah baris, jumlah kursi per blok,
-lebar kursi, jarak antar baris, lebar lorong, jarak layar ke baris pertama,
-tinggi undakan, ukuran layar, posisi pintu, dan harga.
+Semua data ada di **`js/cinemas.js`**. Tiap bioskop berisi nama, kota,
+provinsi, alamat, dan daftar studionya. Tiap studio punya ukurannya sendiri:
+jumlah baris, jumlah kursi per blok, lebar kursi, jarak antar baris, lebar
+lorong, jarak layar ke baris pertama, tinggi undakan, ukuran layar, posisi
+pintu, dan harga.
 
-Ukur studio asli dengan meteran laser (cukup beberapa angka: lebar layar,
-jarak layar ke baris A, jarak antar baris, tinggi undakan), lalu ganti
-angkanya. Peta, animasi 3D, dan semua perhitungan akan menyesuaikan
-otomatis.
+- **Menambah bioskop:** salin satu blok `{ id, name, ... }`, ubah isinya.
+- **Menyesuaikan studio:** ukur studio asli dengan meteran laser (lebar layar,
+  jarak layar ke baris A, jarak antar baris, tinggi undakan), ganti angkanya,
+  lalu set `verified: true` agar label "Tata letak perkiraan" hilang.
+
+Nama, alamat, dan jumlah studio cabang KCM diambil dari Wikipedia
+("Kota Cinema Mall"). Tata letak kursinya masih perkiraan.
 
 ## Menjalankan di komputer
 
@@ -32,10 +38,10 @@ klik dua kali tidak bisa, karena modul JavaScript butuh server.)
 | --- | --- |
 | `index.html` | Kerangka halaman |
 | `css/style.css` | Tampilan |
-| `js/studios.js` | **Data studio — edit di sini** |
+| `js/cinemas.js` | **Data bioskop & studio — edit di sini** |
 | `js/layout.js` | Posisi kursi, jarak, sudut pandang, skor kenyamanan, jalur jalan |
 | `js/viewer.js` | Ruang studio 3D, animasi berjalan & duduk |
-| `js/film.js` | Gambar bergerak di layar (senja di pantai Madura) |
+| `js/film.js` | Adegan di layar (senja di pantai Madura), dihitung di GPU |
 | `js/main.js` | Peta kursi, panel, navigasi |
 | `vendor/three/` | Three.js r160 (lisensi MIT) |
 
@@ -45,7 +51,7 @@ Website di-hosting gratis di GitHub Pages. Setelah mengubah file:
 
 ```
 git add -A
-git commit -m "Perbarui data studio"
+git commit -m "Perbarui data bioskop"
 git push
 ```
 

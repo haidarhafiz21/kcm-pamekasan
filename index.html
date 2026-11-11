@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>KCM Pamekasan · Lihat dari Kursi</title>
-  <meta name="description" content="Pilih kursi di studio KCM Pamekasan dan lihat langsung sudut pandang ke layar: jarak, luas pandangan, dan posisi dari tengah.">
+  <meta name="description" content="Pilih bioskop dan kursi, lalu lihat langsung pemandangan ke layar dari kursi itu: jarak, luas pandangan, dan posisi dari tengah.">
   <meta name="theme-color" content="#0b0a0a">
   <meta property="og:title" content="KCM Pamekasan · Lihat dari Kursi">
   <meta property="og:description" content="Lihat layarnya dulu, baru pilih kursi.">
@@ -24,9 +24,9 @@
 </head>
 <body>
   <header class="top">
-    <a class="brand" href="./" aria-label="KCM Pamekasan, beranda">
-      <span class="brand-mark">KCM</span>
-      <span class="brand-city">Pamekasan</span>
+    <a class="brand" href="./" aria-label="Beranda">
+      <span class="brand-mark" id="brandMark">KCM</span>
+      <span class="brand-city" id="brandCity">Pamekasan</span>
     </a>
     <span class="top-note">Visualisasi kursi</span>
   </header>
@@ -35,6 +35,26 @@
     <section class="intro">
       <h1>Lihat layarnya dulu,<br>baru pilih kursi.</h1>
       <p>Ketuk kursi mana saja. Kamu akan diajak berjalan dari pintu masuk sampai duduk, lalu melihat layar persis dari posisi itu — lengkap dengan jarak dan sudut pandangnya.</p>
+    </section>
+
+    <section class="venue" aria-label="Bioskop yang dipilih">
+      <button class="venue-pick" id="venuePick" aria-haspopup="dialog" aria-controls="picker">
+        <span class="venue-label">Bioskop</span>
+        <span class="venue-row">
+          <b id="venueName">KCM Pamekasan</b>
+          <span class="venue-change">Ganti
+            <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </span>
+        </span>
+        <span class="venue-addr" id="venueAddr"></span>
+      </button>
+      <div class="venue-side">
+        <span class="badge" id="venueBadge" title="Ukuran studio belum diukur langsung">Tata letak perkiraan</span>
+        <a class="venue-map" id="venueMap" href="#" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 1 1 13 0c0 5.4-6.5 11-6.5 11z" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="10" r="2.3" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
+          Lihat lokasi
+        </a>
+      </div>
     </section>
 
     <nav class="tabs" id="tabs" role="tablist" aria-label="Pilih studio"></nav>
@@ -79,7 +99,7 @@
   </main>
 
   <footer class="foot">
-    <p>Tata letak dan ukuran studio adalah perkiraan untuk keperluan visualisasi. Pembelian tiket tetap melalui loket atau aplikasi resmi.</p>
+    <p>Nama, alamat, dan jumlah studio berasal dari sumber publik. Tata letak dan ukuran studio bertanda “perkiraan” belum diukur langsung. Pembelian tiket tetap melalui loket atau aplikasi resmi.</p>
   </footer>
 
   <div class="viewer" id="viewer" hidden>
@@ -136,6 +156,23 @@
         </div>
       </div>
     </section>
+  </div>
+
+  <div class="picker" id="picker" hidden role="dialog" aria-modal="true" aria-labelledby="pickerTitle">
+    <div class="picker-backdrop" data-close></div>
+    <div class="picker-panel">
+      <div class="picker-head">
+        <h2 id="pickerTitle">Pilih bioskop</h2>
+        <button class="icon-btn sm" data-close aria-label="Tutup">
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+      <label class="search">
+        <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M20 20l-4.2-4.2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        <input id="pickerSearch" type="search" placeholder="Cari kota atau nama bioskop" autocomplete="off" enterkeyhint="search" aria-label="Cari bioskop">
+      </label>
+      <div class="picker-list" id="pickerList" role="listbox" aria-label="Daftar bioskop"></div>
+    </div>
   </div>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
