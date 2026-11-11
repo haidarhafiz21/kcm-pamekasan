@@ -90,9 +90,10 @@ export const CINEMAS = [
     province: 'Jawa Timur',
     address: 'Jl. Raya Nyalaran No. 224, Kowel, Pamekasan 69317',
     verified: false,
+    // pintu masuk di depan (dekat layar), sisi kanan
     studios: [
-      studio('sedang', 'Studio 1'),
-      studio('kecil', 'Studio 2', { entrance: RIGHT }),
+      studio('sedang', 'Studio 1', { entrance: FRONT_RIGHT }),
+      studio('kecil', 'Studio 2', { entrance: FRONT_RIGHT }),
     ],
   },
   {
