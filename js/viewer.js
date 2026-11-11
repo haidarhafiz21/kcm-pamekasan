@@ -820,7 +820,7 @@ export class SeatViewer {
     this._applyHouse();
 
     const head = new V3();
-    const getHead = () => head.set(g.position.x, g.position.y + 1.2, g.position.z);
+    const getHead = () => head.set(g.position.x, g.position.y + 0.95, g.position.z);
     const look = getHead().clone().lerp(hall, 0.4);
     this._setPoseLook(O, look);
     this.look.tYaw = this.look.tPitch = this.look.yaw = this.look.pitch = 0;
@@ -842,7 +842,7 @@ export class SeatViewer {
           const p = pl.at(s);
           g.position.set(p.x, floorFor(p.x, p.z), p.z);
           g.rotation.y = lerpAngle(g.rotation.y, Math.atan2(-p.dx, -p.dz), damp(9, dt));
-          Wk.walk((s / 1.4) * TAU, V(t) / vmax);
+          Wk.walk((s / Wk.stride) * TAU, V(t) / vmax);
           // penanda memudar ketika tokoh sudah dekat kursinya
           const near2 = Math.hypot(p.x - seat.x, p.z - seat.z);
           this.mat.marker.opacity = this.mat.markerGlow.opacity = smooth(1.0, 2.2, near2);
