@@ -1186,3 +1186,39 @@ p {
 .pk-item {
   scroll-margin: 44px 0 8px;
 }
+
+/* panel detail kursi bisa diseret naik-turun */
+.sheet {
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.sheet.dragging {
+  transition: none;
+}
+.grab {
+  height: 28px;
+  cursor: grab;
+}
+.sheet.dragging,
+.sheet.dragging .grab {
+  cursor: grabbing;
+}
+.grab span {
+  transition: background 0.2s var(--ease), width 0.2s var(--ease);
+}
+.grab:hover span,
+.sheet.dragging .grab span {
+  background: var(--muted);
+  width: 44px;
+}
+.sheet .mini {
+  transition: opacity 0.3s var(--ease);
+}
+.sheet.collapsed .mini {
+  opacity: 0;
+  pointer-events: none;
+}
+.sheet.collapsed .sheet-head {
+  cursor: pointer;
+}

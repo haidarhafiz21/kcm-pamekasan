@@ -601,19 +601,95 @@ function hideHint() {
 
 function showSheet() {
   el.sheet.classList.add('up');
-  el.sheet.classList.remove('collapsed');
-  updateInset();
+  setCollapsed(false);
+}
+
+// jarak panel turun saat diciutkan: yang tersisa hanya pegangan + judul kursi
+function collapseDistance() {
+  const h = el.sheet.offsetHeight;
+  const keep = el.grab.offsetHeight + el.sheet.querySelector('.sheet-title').offsetHeight + 22;
+  return Math.max(0, h - keep);
 }
 
 function updateInset() {
-  if (!viewer || !state.open) return;
+  if (!state.open) return;
+  const by = collapseDistance();
+  el.sheet.style.setProperty('--collapse', `${by}px`);
+  if (!viewer) return;
   if (!el.sheet.classList.contains('up')) return viewer.setInset(0);
   const h = el.sheet.offsetHeight;
-  const collapsed = el.sheet.classList.contains('collapsed');
-  const head = el.grab.offsetHeight + el.sheet.querySelector('.sheet-head').offsetHeight + 8;
-  const by = Math.max(0, h - head);
-  el.sheet.style.setProperty('--collapse', `${by}px`);
-  viewer.setInset(collapsed ? h - by : h);
+  viewer.setInset(el.sheet.classList.contains('collapsed') ? h - by : h);
+}
+
+function setCollapsed(on) {
+  el.sheet.classList.toggle('collapsed', on);
+  el.grab.setAttribute('aria-expanded', String(!on));
+  updateInset();
+}
+
+// panel bisa diseret naik-turun (jari atau mouse), lalu meluncur ke posisi terdekat
+function bindSheetDrag() {
+  const sh = el.sheet;
+  let d = null;
+  let suppressClick = false;
+  sh.addEventListener('pointerdown', (e) => {
+    if (!sh.classList.contains('up') || e.button > 0) return;
+    const by = collapseDistance();
+    d = {
+      id: e.pointerId,
+      y0: e.clientY,
+      by,
+      base: sh.classList.contains('collapsed') ? by : 0,
+      off: 0,
+      moved: false,
+      samples: [[e.clientY, e.timeStamp]],
+    };
+  });
+  sh.addEventListener('pointermove', (e) => {
+    if (!d || e.pointerId !== d.id) return;
+    const dy = e.clientY - d.y0;
+    if (!d.moved) {
+      if (Math.abs(dy) < 6) return;
+      d.moved = true;
+      sh.setPointerCapture(e.pointerId);
+      sh.classList.add('dragging');
+    }
+    let off = d.base + dy;
+    if (off < 0) off *= 0.25; // efek karet saat ditarik melewati batas
+    if (off > d.by) off = d.by + (off - d.by) * 0.25;
+    d.off = off;
+    sh.style.transform = `translate(-50%, ${off}px)`;
+    d.samples.push([e.clientY, e.timeStamp]);
+    if (d.samples.length > 6) d.samples.shift();
+    viewer?.setInset(sh.offsetHeight - Math.min(d.by, Math.max(0, off)));
+  });
+  const end = (e) => {
+    if (!d || e.pointerId !== d.id) return;
+    const drag = d;
+    d = null;
+    if (!drag.moved) return;
+    suppressClick = true;
+    setTimeout(() => (suppressClick = false), 0);
+    const a = drag.samples[0];
+    const b = drag.samples[drag.samples.length - 1];
+    const v = (b[0] - a[0]) / Math.max(1, b[1] - a[1]); // px per ms, positif = ke bawah
+    const collapse = v > 0.35 ? true : v < -0.35 ? false : drag.off > drag.by / 2;
+    sh.classList.remove('dragging');
+    sh.style.transform = '';
+    setCollapsed(collapse);
+  };
+  sh.addEventListener('pointerup', end);
+  sh.addEventListener('pointercancel', end);
+  // seretan tidak boleh ikut dianggap ketukan tombol
+  sh.addEventListener(
+    'click',
+    (e) => {
+      if (!suppressClick) return;
+      e.stopPropagation();
+      e.preventDefault();
+    },
+    true
+  );
 }
 
 function onSeated() {
@@ -838,16 +914,11 @@ function bindViewer() {
   el.skip.addEventListener('click', skipWalk);
   el.prev.addEventListener('click', () => moveTo(neighbor(state.current, -1)));
   el.next.addEventListener('click', () => moveTo(neighbor(state.current, 1)));
-  el.grab.addEventListener('click', () => {
-    el.sheet.classList.toggle('collapsed');
-    updateInset();
-  });
+  el.grab.addEventListener('click', () => setCollapsed(!el.sheet.classList.contains('collapsed')));
   el.sheet.querySelector('.sheet-head').addEventListener('click', (e) => {
-    if (el.sheet.classList.contains('collapsed') && !e.target.closest('svg')) {
-      el.sheet.classList.remove('collapsed');
-      updateInset();
-    }
+    if (el.sheet.classList.contains('collapsed') && !e.target.closest('svg')) setCollapsed(false);
   });
+  bindSheetDrag();
   el.sheetMini.addEventListener('click', (e) => {
     const ctm = el.sheetMini.getScreenCTM();
     if (!ctm) return;
