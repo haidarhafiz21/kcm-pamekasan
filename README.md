@@ -35,6 +35,8 @@ provinsi, alamat, dan daftar studionya.
 | Kapasitas Jati Asih (112/studio, 8 baris) | Fimela & matriphe.com, 2017 |
 | Kapasitas Situbondo (±460 total) | TIMES Indonesia, Februari 2026 |
 | Ukuran ruangan & layar | Pedoman UNIC (bukan hasil ukur) |
+| Rekomendasi kursi ("Titik terbaik") | SMPTE ST 202:2010 Gambar 4: titik acuan suara S di 2/3 panjang ruangan dari layar, di tengah |
+| Label "Terlalu dekat" / "Sudut miring" / "Terlalu jauh" | UNIC §6.1–6.3 (80°, 25°, 35°) dan batas minimum THX 26° |
 
 Studio lain belum punya data; susunan kursinya memakai pola yang paling
 umum di denah resmi KCM dan diberi label "Tata letak perkiraan".

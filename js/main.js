@@ -159,8 +159,13 @@ const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&
 const fold = (s) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
 const mapsUrl = (c) => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${c.name}, ${c.address}`)}`;
 const subtitle = (st) => `${cinema().name} · ${st.name}${st.price ? ' · ' + fmtRp(st.price) : ''}`;
+// rekomendasi = kursi yang memenuhi batas UNIC/THX dan paling dekat titik acuan
+// suara SMPTE ST 202 (2/3 panjang ruangan, di tengah)
+const WARN = ['close', 'side', 'far'];
 const bestSeats = (L, n = 6) =>
-  [...L.seats].sort((a, b) => b.m.score - a.m.score || Math.abs(a.x) - Math.abs(b.x)).slice(0, n);
+  [...L.seats]
+    .sort((a, b) => WARN.includes(a.m.grade.key) - WARN.includes(b.m.grade.key) || a.m.refDist - b.m.refDist)
+    .slice(0, n);
 
 function lock() {
   html.classList.toggle('lock', state.open || state.picker);

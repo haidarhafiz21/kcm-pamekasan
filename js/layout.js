@@ -12,6 +12,7 @@ const SEAT_SPEC = {
 
 export const STAND_EYE = 1.6;
 const CROSS_DEPTH = 1.6;
+const LAST_ROW_EXTRA = 0.2;
 const WALKABLE = 0.8;
 
 const smooth = (a, b, x) => {
@@ -110,12 +111,15 @@ export function buildLayout(studio) {
 
   const last = rows[rows.length - 1];
   const frontEdge = rows[0].z - pitch / 2;
-  const crossZ = last.z + pitch / 2 + CROSS_DEPTH / 2;
-  const backZ = last.z + pitch / 2 + CROSS_DEPTH;
+  const ent = studio.entrance || { side: 'left', end: 'back' };
+  // pintu belakang butuh lorong melintang di belakang baris terakhir; tanpa itu
+  // dinding belakang hanya 150–200 mm di belakang baris terakhir (UNIC §7.1.2)
+  const backGap = ent.end === 'back' ? CROSS_DEPTH : LAST_ROW_EXTRA;
+  const crossZ = last.z + pitch / 2 + backGap / 2;
+  const backZ = last.z + pitch / 2 + backGap;
   const scr = studio.screen;
   const ceil = Math.max(scr.bottom + scr.height + 1.5, last.floor + 3.3);
 
-  const ent = studio.entrance || { side: 'left', end: 'back' };
   const doorSide = ent.side === 'right' ? 1 : -1;
   const door =
     ent.end === 'front'
@@ -133,6 +137,9 @@ export function buildLayout(studio) {
     room: { halfW, width: halfW * 2, backZ, crossZ, frontEdge, ceil, seatsHalf: halfSeats },
     screen: { ...scr, cy: scr.bottom + scr.height / 2, top: scr.bottom + scr.height },
     door,
+    // Titik acuan S (SMPTE ST 202:2010, Gambar 4): 2/3 panjang ruangan dari
+    // layar, di tengah. Di titik inilah sistem suara bioskop diukur & disetel.
+    ref: { x: 0, z: (2 / 3) * backZ },
   };
 
   // lantai dengan transisi tangga yang halus (untuk jalan)
@@ -147,10 +154,13 @@ export function buildLayout(studio) {
     return y;
   };
 
-  seats.forEach((s) => (s.m = metrics(s, layout)));
-  const best = Math.max(...seats.map((s) => s.m.score));
-  seats.forEach((s) => (s.m.grade = grade(s.m, best)));
-  layout.bestScore = best;
+  seats.forEach((s) => {
+    s.m = metrics(s, layout);
+    s.m.grade = grade(s.m);
+    // skor (untuk peta warna & urutan rekomendasi) = kedekatan ke titik acuan S;
+    // kursi di luar batas UNIC/THX selalu diberi skor rendah
+    if (['close', 'side', 'far'].includes(s.m.grade.key)) s.m.score = Math.min(s.m.score, 20);
+  });
   return layout;
 }
 
@@ -166,26 +176,28 @@ export function metrics(seat, layout) {
   const off = deg(Math.atan(e.x / d));
   const dist = Math.hypot(d, e.x, screen.cy - e.y);
 
-  const f = Math.exp(-(((hfov - 50) / 21) ** 2));
-  const o = Math.exp(-((Math.max(0, Math.abs(off) - 6) / 24) ** 2));
-  const v = vTop > 28 ? Math.exp(-(((vTop - 28) / 11) ** 2)) : 1;
-  const down = vCenter < -6 ? Math.exp(-(((vCenter + 6) / 10) ** 2)) : 1;
-  const score = Math.round(100 * f * o * v * down);
+  // jarak (mendatar) ke titik acuan S, dalam meter dan dalam jumlah baris
+  const { ref, room, studio } = layout;
+  const refDist = Math.hypot(e.x - ref.x, e.z - ref.z);
+  const refRows = refDist / studio.rowPitch;
+  const score = Math.round(100 * Math.exp(-((refDist / (room.backZ / 3)) ** 2)));
 
-  return { d, hfov, vCenter, vTop, vBottom, off, offX: e.x, dist, score };
+  return { d, hfov, vCenter, vTop, vBottom, off, offX: e.x, dist, refDist, refRows, score };
 }
 
-function grade(m, best) {
-  if (m.score >= Math.min(92, best - 4) && m.score >= 70) return { key: 'sweet', label: 'Titik terbaik' };
-  if (m.score >= 74) return { key: 'great', label: 'Sangat nyaman' };
-  if (m.score >= 56) return { key: 'good', label: 'Nyaman' };
-  // batas pedoman UNIC: §6.1 lebar layar > 80° pandangan, §6.3 sudut ke tengah
-  // layar ≥ 25° dari baris terdepan, §6.2 sudut miring > 35° (di atas 45° tidak layak)
+// Label kursi, masing-masing berdasarkan sumber:
+//  - UNIC §6.1: layar > 80° pandangan → terlalu dekat
+//  - UNIC §6.3: sudut ke tengah layar ≥ 25° → terlalu dekat (mendongak)
+//  - UNIC §6.2: sudut miring ke tengah layar > 35° (di atas 45° tidak layak)
+//  - THX: layar < 26° pandangan berada di bawah batas minimum
+//  - SMPTE ST 202: titik acuan S di 2/3 panjang ruangan, di tengah
+function grade(m) {
   if (m.hfov > 80 || m.vCenter >= 25) return { key: 'close', label: 'Terlalu dekat' };
   if (Math.abs(m.off) > 35) return { key: 'side', label: 'Sudut miring' };
-  // THX menganjurkan layar mengisi minimal 36° pandangan dari kursi terjauh
-  if (m.hfov < 36) return { key: 'far', label: 'Agak jauh' };
-  return { key: 'ok', label: 'Cukup' };
+  if (m.hfov < 26) return { key: 'far', label: 'Terlalu jauh' };
+  if (m.refRows <= 1) return { key: 'sweet', label: 'Titik terbaik' };
+  if (m.refRows <= 2) return { key: 'great', label: 'Dekat titik terbaik' };
+  return { key: 'good', label: 'Sesuai standar' };
 }
 
 // ───────── format ─────────
@@ -202,14 +214,15 @@ export function offsetText(m) {
 export function describe(m) {
   const parts = [];
   const f = Math.round(m.hfov);
-  if (m.hfov > 78) parts.push(`Layar memenuhi ${f}° pandangan — kamu perlu menoleh untuk melihat tepinya.`);
-  else if (m.hfov > 60) parts.push(`Layar mengisi ${f}° pandangan. Imersif, cocok untuk film aksi.`);
-  else if (m.hfov > 38) parts.push(`Layar mengisi ${f}° pandangan. Seluruh layar terlihat tanpa menoleh.`);
-  else parts.push(`Layar mengisi ${f}° pandangan, terasa lebih kecil dan santai.`);
+  if (m.hfov > 80) parts.push(`Layar memenuhi ${f}° pandangan, melebihi batas nyaman 80° (UNIC); perlu menoleh untuk melihat tepinya.`);
+  else if (m.hfov >= 26) parts.push(`Layar mengisi ${f}° pandangan; seluruh layar terlihat tanpa menoleh.`);
+  else parts.push(`Layar hanya mengisi ${f}° pandangan, di bawah batas minimum 26° (THX).`);
 
-  if (m.vTop > 30) parts.push('Kepala cukup mendongak ke atas.');
-  else if (Math.abs(m.off) > 15) parts.push('Posisi agak ke samping, gambar terlihat sedikit miring.');
-  else if (Math.abs(m.vCenter) < 6 && Math.abs(m.off) < 6) parts.push('Mata hampir sejajar dengan tengah layar.');
+  if (m.vCenter >= 25) parts.push(`Sudut ke tengah layar ${Math.round(m.vCenter)}°, melebihi batas 25° (UNIC): kepala mendongak.`);
+  else if (Math.abs(m.off) > 35) parts.push(`Sudut ${Math.round(Math.abs(m.off))}° dari samping, melebihi batas 35° (UNIC): gambar terlihat miring.`);
+
+  if (m.refRows <= 1) parts.push('Kursi ini dekat titik acuan suara (2/3 panjang ruangan, di tengah), tempat sistem suara bioskop disetel (SMPTE ST 202).');
+  else parts.push(`Berjarak ${fmt1(m.refDist)} m dari titik acuan suara (2/3 panjang ruangan, di tengah).`);
   return parts.join(' ');
 }
 
