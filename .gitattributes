@@ -1,0 +1,2 @@
+# hook git harus memakai akhir baris LF agar bisa dijalankan sh
+.githooks/* text eol=lf
