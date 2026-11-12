@@ -555,6 +555,10 @@ p {
   font-size: 12.5px;
   color: var(--faint);
 }
+.foot a {
+  color: var(--muted);
+  text-underline-offset: 2px;
+}
 
 /* ───────── viewer ───────── */
 .viewer {

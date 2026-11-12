@@ -10,21 +10,34 @@ Website statis murni (HTML + CSS + JavaScript, tanpa server dan tanpa build).
 ## Menambah bioskop & menyesuaikan studio
 
 Semua data ada di **`js/cinemas.js`**. Tiap bioskop berisi nama, kota,
-provinsi, alamat, dan daftar studionya. Tiap studio punya ukurannya sendiri:
-jumlah baris, jumlah kursi per blok, lebar kursi, jarak antar baris, lebar
-lorong, jarak layar ke baris pertama, tinggi undakan, ukuran layar, posisi
-pintu, dan harga.
+provinsi, alamat, dan daftar studionya.
 
 - **Menambah bioskop:** salin satu blok `{ id, name, ... }`, ubah isinya.
-- **Menyesuaikan studio:** ukur studio asli dengan meteran laser (lebar layar,
-  jarak layar ke baris A, jarak antar baris, tinggi undakan), ganti angkanya,
-  lalu set `verified: true` agar label "Tata letak perkiraan" hilang.
+- **Denah kursi:** salin dari halaman "Pilih Bangku" aplikasi KCM (huruf baris,
+  nomor kursi, letak lorong), lalu tandai studionya dengan `seatMap`.
+- **Ukuran ruangan & layar:** dihitung otomatis di **`js/standar.js`** dari
+  jumlah kursi memakai pedoman desain bioskop
+  [UNIC "Cinema Auditorium Design"](https://unic-cinemas.org/fileadmin/CinemaAuditoriumDesign_v1.0.pdf)
+  (lebar kursi, jarak baris, lorong, jarak baris terdepan 0,6 × lebar layar,
+  ruang samping layar, tinggi undakan dari garis pandang). Kalau studio sudah
+  diukur langsung, tulis angkanya di studio itu (`screen`, `firstRow`,
+  `rowPitch`, `floors`, ...) lalu set `verified: true`.
 
-Nama, alamat, dan jumlah studio cabang KCM diambil dari Wikipedia
-("Kota Cinema Mall"). Susunan kursi enam studio (Banjarmasin Studio 3,
-Wisma Asri Studio 1, Greenland Studio 2, Jember Studio 2, Situbondo Studio 2,
-Tabalong Studio 2) sudah disalin dari denah aplikasi KCM; ukuran ruangannya
-dan studio lain masih perkiraan.
+### Sumber data
+
+| Data | Sumber |
+| --- | --- |
+| Nama, alamat, tanggal buka, jumlah studio | Wikipedia "Kota Cinema Mall" |
+| Denah kursi 9 studio (Pamekasan 1 & 2, Banjarmasin 3, Wisma Asri 1, Greenland 2, Jember 2, Situbondo 2, Tabalong 2) | Aplikasi KCM, 12 November 2026 |
+| Kapasitas Pamekasan (205/studio) | FaktualNews, 13 Februari 2020 |
+| Kapasitas Banjarmasin (205/studio reguler, Suites 40) | ANTARA Kalsel, 12 Desember 2022 |
+| Kapasitas Jember (180/studio) | Kompasiana, 2019 |
+| Kapasitas Jati Asih (112/studio, 8 baris) | Fimela & matriphe.com, 2017 |
+| Kapasitas Situbondo (±460 total) | TIMES Indonesia, Februari 2026 |
+| Ukuran ruangan & layar | Pedoman UNIC (bukan hasil ukur) |
+
+Studio lain belum punya data; susunan kursinya memakai pola yang paling
+umum di denah resmi KCM dan diberi label "Tata letak perkiraan".
 
 ## Menjalankan di komputer
 
@@ -42,6 +55,7 @@ klik dua kali tidak bisa, karena modul JavaScript butuh server.)
 | `index.html` | Kerangka halaman |
 | `css/style.css` | Tampilan |
 | `js/cinemas.js` | **Data bioskop & studio — edit di sini** |
+| `js/standar.js` | Ukuran ruangan & layar menurut pedoman UNIC |
 | `js/layout.js` | Posisi kursi, jarak, sudut pandang, skor kenyamanan, jalur jalan |
 | `js/viewer.js` | Ruang studio 3D, lampu, kamera sinematik |
 | `js/walker.js` | Tokoh kecil yang berjalan | `js/viewer.js` | Ruang studio 3D, animasi berjalan & duduk | duduk |

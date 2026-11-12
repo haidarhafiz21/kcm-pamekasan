@@ -2,9 +2,12 @@
 // Sistem koordinat (meter): layar di z = 0 menghadap +z, x = 0 tengah layar,
 // x positif = kanan (dilihat penonton yang menghadap layar), y = 0 lantai depan.
 
+import { UNIC } from './standar.js';
+
+// tinggi mata duduk mengikuti pedoman UNIC (lihat standar.js)
 const SEAT_SPEC = {
-  regular: { eyeSeated: 1.15, eyeZ: 0.1, depth: 0.52 },
-  recliner: { eyeSeated: 1.02, eyeZ: 0.2, depth: 0.64 },
+  regular: { eyeSeated: UNIC.regular.eye, eyeZ: 0.1, depth: 0.52 },
+  recliner: { eyeSeated: UNIC.recliner.eye, eyeZ: 0.2, depth: 0.64 },
 };
 
 export const STAND_EYE = 1.6;
@@ -53,7 +56,7 @@ export function buildLayout(studio) {
     letter,
     index: i,
     z: studio.firstRow + i * pitch,
-    floor: Math.max(0, i - (studio.flatRows - 1)) * studio.riser,
+    floor: studio.floors ? studio.floors[i] : Math.max(0, i - (studio.flatRows - 1)) * studio.riser,
     seats: [],
   }));
 
@@ -176,9 +179,12 @@ function grade(m, best) {
   if (m.score >= Math.min(92, best - 4) && m.score >= 70) return { key: 'sweet', label: 'Titik terbaik' };
   if (m.score >= 74) return { key: 'great', label: 'Sangat nyaman' };
   if (m.score >= 56) return { key: 'good', label: 'Nyaman' };
-  if (m.hfov > 72 || m.vTop > 32) return { key: 'close', label: 'Terlalu dekat' };
-  if (Math.abs(m.off) > 17) return { key: 'side', label: 'Sudut miring' };
-  if (m.hfov < 34) return { key: 'far', label: 'Agak jauh' };
+  // batas pedoman UNIC: §6.1 lebar layar > 80° pandangan, §6.3 sudut ke tengah
+  // layar ≥ 25° dari baris terdepan, §6.2 sudut miring > 35° (di atas 45° tidak layak)
+  if (m.hfov > 80 || m.vCenter >= 25) return { key: 'close', label: 'Terlalu dekat' };
+  if (Math.abs(m.off) > 35) return { key: 'side', label: 'Sudut miring' };
+  // THX menganjurkan layar mengisi minimal 36° pandangan dari kursi terjauh
+  if (m.hfov < 36) return { key: 'far', label: 'Agak jauh' };
   return { key: 'ok', label: 'Cukup' };
 }
 

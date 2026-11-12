@@ -181,10 +181,13 @@ function renderVenue() {
 function renderBadge(st) {
   const b = el.venueBadge;
   b.hidden = !!(cinema().verified || st.verified);
-  b.textContent = st.seatMap ? 'Ukuran perkiraan' : 'Tata letak perkiraan';
+  const ukuran = 'Ukuran ruangan & layar dihitung dari pedoman desain bioskop UNIC, belum diukur langsung.';
+  b.textContent = st.seatMap ? 'Ukuran standar' : 'Tata letak perkiraan';
   b.title = st.seatMap
-    ? 'Susunan kursi sesuai aplikasi KCM; ukuran ruangan dan layar belum diukur langsung'
-    : 'Ukuran studio belum diukur langsung';
+    ? `Susunan kursi sesuai aplikasi KCM. ${ukuran}`
+    : st.capacity
+      ? `Jumlah kursi (${st.capacity.seats}) sesuai ${st.capacity.source}; susunannya perkiraan. ${ukuran}`
+      : `Susunan kursi perkiraan (belum ada denah resmi). ${ukuran}`;
 }
 
 function selectCinema(ci, { instant = false, studioIdx = 0, keepHash = false } = {}) {
