@@ -21,7 +21,10 @@ pintu, dan harga.
   lalu set `verified: true` agar label "Tata letak perkiraan" hilang.
 
 Nama, alamat, dan jumlah studio cabang KCM diambil dari Wikipedia
-("Kota Cinema Mall"). Tata letak kursinya masih perkiraan.
+("Kota Cinema Mall"). Susunan kursi enam studio (Banjarmasin Studio 3,
+Wisma Asri Studio 1, Greenland Studio 2, Jember Studio 2, Situbondo Studio 2,
+Tabalong Studio 2) sudah disalin dari denah aplikasi KCM; ukuran ruangannya
+dan studio lain masih perkiraan.
 
 ## Menjalankan di komputer
 

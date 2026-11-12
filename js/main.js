@@ -174,8 +174,17 @@ function renderVenue() {
   el.venueName.textContent = c.name;
   el.venueAddr.textContent = c.address;
   el.venueMap.href = mapsUrl(c);
-  el.venueBadge.hidden = !!c.verified;
   document.title = `${c.name} · Lihat dari Kursi`;
+}
+
+// label keakuratan: denah kursi resmi tetapi ukuran ruangan masih perkiraan
+function renderBadge(st) {
+  const b = el.venueBadge;
+  b.hidden = !!(cinema().verified || st.verified);
+  b.textContent = st.seatMap ? 'Ukuran perkiraan' : 'Tata letak perkiraan';
+  b.title = st.seatMap
+    ? 'Susunan kursi sesuai aplikasi KCM; ukuran ruangan dan layar belum diukur langsung'
+    : 'Ukuran studio belum diukur langsung';
 }
 
 function selectCinema(ci, { instant = false, studioIdx = 0, keepHash = false } = {}) {
@@ -291,6 +300,7 @@ function selectStudio(i, { instant = false, force = false, keepHash = false } = 
   const st = state.L.studio;
   el.studioName.textContent = st.name;
   el.studioMeta.textContent = `${st.type} · ${state.L.seats.length} kursi · layar ${fmt1(st.screen.width)} m`;
+  renderBadge(st);
   if (!keepHash) history.replaceState(null, '', baseHash());
   const L = state.L;
   const apply = () => {

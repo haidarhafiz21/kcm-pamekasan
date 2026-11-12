@@ -7,9 +7,11 @@
  *  "Studio 4" (karena tetrafobia), jadi cabang 5 studio bernomor
  *  1, 2, 3, 5, 6.
  *
- *  TATA LETAK KURSI MASIH PERKIRAAN. Setelah mengukur studio asli,
- *  ganti angkanya lalu ubah `verified: true` agar label
- *  "Tata letak perkiraan" hilang untuk bioskop itu.
+ *  TATA LETAK KURSI MASIH PERKIRAAN, kecuali studio bertanda
+ *  `...APP` (lihat di bawah): susunan kursinya disalin dari denah
+ *  "Pilih Bangku" aplikasi KCM, tetapi ukuran ruangan & layar tetap
+ *  perkiraan. Setelah mengukur studio asli, ganti angkanya lalu ubah
+ *  `verified: true` agar labelnya hilang.
  *
  *  Menambah bioskop baru: salin satu blok { id, name, ... } lalu ubah.
  *  `id` dipakai di tautan (contoh #/kcm-pamekasan/studio-1/F8), jadi
@@ -24,7 +26,7 @@
  *    seatWidth   lebar satu kursi          rowPitch  jarak antar baris
  *    aisleWidth  lebar lorong antar blok (angka atau daftar per lorong;
  *                < 0,8 m dianggap tidak bisa dilewati)
- *    sideAisle   lebar lorong samping      firstRow  layar → baris A
+ *    sideAisle   lebar lorong samping      firstRow  layar → baris terdepan
  *    flatRows    jumlah baris depan yang lantainya datar
  *    riser       tinggi tiap undakan
  *    screen      { width, height, bottom }  (bottom = tinggi tepi bawah
@@ -32,6 +34,10 @@
  *    entrance    { side: 'left' | 'right', end: 'back' | 'front' }
  *    seat        'regular' | 'recliner'
  *    numbering   'ltr' (kursi 1 paling kiri) | 'rtl'
+ *    fixedNumbers true = nomor kursi mengikuti posisi kolom, jadi kursi
+ *                yang ditiadakan tetap "memakai" nomornya (seperti KCM:
+ *                baris F di Banjarmasin berhenti di F3, tanpa F2 & F1)
+ *    seatMap     true = susunan kursi sesuai aplikasi resmi
  *    price       angka (mis. 35000) atau null untuk disembunyikan
  */
 
@@ -47,7 +53,8 @@ const BASE = {
   flatRows: 2,
   riser: 0.34,
   numbering: 'ltr',
-  entrance: { side: 'left', end: 'back' },
+  // pintu masuk di depan, samping kanan layar (dilihat dari kursi)
+  entrance: { side: 'right', end: 'front' },
 };
 
 // Ukuran studio umum. Pakai sebagai titik awal lalu timpa seperlunya.
@@ -74,9 +81,36 @@ const SIZE = {
 
 const slug = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 const studio = (size, name, extra = {}) => ({ ...BASE, ...SIZE[size], id: slug(name), name, ...extra });
-const RIGHT = { side: 'right', end: 'back' };
-const FRONT_LEFT = { side: 'left', end: 'front' };
-const FRONT_RIGHT = { side: 'right', end: 'front' };
+
+// ───────── Denah dari aplikasi KCM ("Pilih Bangku") ─────────
+// Di aplikasi, LAYAR di atas dan baris huruf terakhir (N/M/L) paling dekat
+// layar; baris A paling belakang. Tidak ada baris I. Nomor kursi terbesar di
+// kiri, kursi 1 di kanan (dilihat dari kursi menghadap layar). Hanya satu
+// lorong, di antara blok kiri dan kanan.
+const APP = { numbering: 'rtl', fixedNumbers: true, seatMap: true };
+const only = (letters, counts) => Object.fromEntries([...letters].map((r) => [r, counts]));
+const ROWS_N = 'NMLKJHGFEDCBA'; // 13 baris
+const ROWS_M = 'MLKJHGFEDCBA'; // 12 baris
+const ROWS_L = 'LKJHGFEDCBA'; // 11 baris
+
+// 17 kursi (17–8 | 7–1); baris F–N tanpa kursi 17 & 16 di kiri → 205 kursi
+const APP_17_KIRI = {
+  ...APP,
+  rows: ROWS_N,
+  blocks: [10, 7],
+  rowBlocks: only('FGHJKLMN', [8, 7]),
+  firstRow: 4.6,
+  screen: { width: 10.0, height: 4.2, bottom: 1.2 },
+};
+// 15 kursi (15–8 | 7–1), baris A–M → 180 kursi
+const APP_15 = {
+  ...APP,
+  rows: ROWS_M,
+  blocks: [8, 7],
+  rowBlocks: {},
+  firstRow: 4.2,
+  screen: { width: 9.0, height: 3.8, bottom: 1.2 },
+};
 
 export const DEFAULT_CINEMA = 'kcm-pamekasan';
 
@@ -90,10 +124,9 @@ export const CINEMAS = [
     province: 'Jawa Timur',
     address: 'Jl. Raya Nyalaran No. 224, Kowel, Pamekasan 69317',
     verified: false,
-    // pintu masuk di depan (dekat layar), sisi kanan
     studios: [
-      studio('sedang', 'Studio 1', { entrance: FRONT_RIGHT }),
-      studio('kecil', 'Studio 2', { entrance: FRONT_RIGHT }),
+      studio('sedang', 'Studio 1'),
+      studio('kecil', 'Studio 2'),
     ],
   },
   {
@@ -107,7 +140,14 @@ export const CINEMAS = [
     // total ±460 kursi untuk 3 studio menurut pemberitaan
     studios: [
       studio('sedang', 'Studio 1', { rows: 'ABCDEFGHIJ', firstRow: 4.6 }),
-      studio('kecil', 'Studio 2', { rows: 'ABCDEFGHI', entrance: RIGHT }),
+      // denah aplikasi KCM: 13 kursi (13–6 | 5–1), baris A–L → 143 kursi
+      studio('kecil', 'Studio 2', {
+        ...APP,
+        rows: ROWS_L,
+        blocks: [8, 5],
+        firstRow: 3.9,
+        screen: { width: 8.0, height: 3.35, bottom: 1.15 },
+      }),
       studio('kecil', 'Studio 3', { blocks: [3, 11, 3], screen: { width: 10.0, height: 4.2, bottom: 1.2 } }),
     ],
   },
@@ -121,9 +161,9 @@ export const CINEMAS = [
     verified: false,
     studios: [
       studio('besar', 'Studio 1'),
-      studio('sedang', 'Studio 2', { entrance: RIGHT }),
+      studio('sedang', 'Studio 2', { ...APP_15 }),
       studio('sedang', 'Studio 3', { rowBlocks: { A: [0, 10, 0] } }),
-      studio('kecil', 'Studio 5', { entrance: FRONT_RIGHT }),
+      studio('kecil', 'Studio 5'),
       studio('kecil', 'Studio 6', { rows: 'ABCDEFG' }),
     ],
   },
@@ -136,9 +176,9 @@ export const CINEMAS = [
     address: 'Jl. Raya Laban, Laban, Menganti, Gresik 61174',
     verified: false,
     studios: [
-      studio('sedang', 'Studio 1', { entrance: RIGHT }),
-      studio('kecil', 'Studio 2'),
-      studio('mini', 'Studio 3', { entrance: RIGHT }),
+      studio('sedang', 'Studio 1'),
+      studio('kecil', 'Studio 2', APP_17_KIRI),
+      studio('mini', 'Studio 3'),
     ],
   },
 
@@ -152,11 +192,11 @@ export const CINEMAS = [
     address: 'Jl. Parpostel No. 85-86, Jatiasih, Bekasi 17423',
     verified: false,
     studios: [
-      studio('besar', 'Studio 1', { entrance: RIGHT }),
+      studio('besar', 'Studio 1'),
       studio('sedang', 'Studio 2'),
-      studio('sedang', 'Studio 3', { entrance: RIGHT }),
+      studio('sedang', 'Studio 3'),
       studio('kecil', 'Studio 5'),
-      studio('kecil', 'Studio 6', { entrance: RIGHT, rowBlocks: { A: [0, 10, 0] } }),
+      studio('kecil', 'Studio 6', { rowBlocks: { A: [0, 10, 0] } }),
     ],
   },
   {
@@ -168,10 +208,10 @@ export const CINEMAS = [
     address: 'Jl. Jembatan Besi, Teluk Pucung, Bekasi Utara, Bekasi 17121',
     verified: false,
     studios: [
-      studio('besar', 'Studio 1', { entrance: FRONT_LEFT }),
-      studio('sedang', 'Studio 2', { entrance: FRONT_RIGHT }),
+      studio('besar', 'Studio 1', { ...APP_15 }),
+      studio('sedang', 'Studio 2'),
       studio('sedang', 'Studio 3', { rows: 'ABCDEFGH' }),
-      studio('kecil', 'Studio 5', { entrance: RIGHT }),
+      studio('kecil', 'Studio 5'),
       studio('mini', 'Studio 6'),
     ],
   },
@@ -187,8 +227,14 @@ export const CINEMAS = [
     verified: false,
     studios: [
       studio('sedang', 'Studio 1'),
-      studio('sedang', 'Studio 2', { entrance: RIGHT }),
-      studio('kecil', 'Studio 3'),
+      studio('sedang', 'Studio 2'),
+      // denah aplikasi KCM: 17 kursi (17–10 | 9–1); baris F–N tanpa kursi 2 & 1
+      // di kanan → 205 kursi
+      studio('kecil', 'Studio 3', {
+        ...APP_17_KIRI,
+        blocks: [8, 9],
+        rowBlocks: only('FGHJKLMN', [8, 7]),
+      }),
       studio('suites', 'Suites'),
     ],
   },
@@ -202,7 +248,7 @@ export const CINEMAS = [
     verified: false,
     studios: [
       studio('kecil', 'Studio 1'),
-      studio('mini', 'Studio 2', { entrance: RIGHT }),
+      studio('mini', 'Studio 2', { ...APP_17_KIRI }),
     ],
   },
 ];

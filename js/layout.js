@@ -57,6 +57,14 @@ export function buildLayout(studio) {
     seats: [],
   }));
 
+  // jumlah kolom penuh (untuk penomoran tetap per posisi)
+  const slotBase = [];
+  let totalSlots = 0;
+  blockSpans.forEach((span) => {
+    slotBase.push(totalSlots);
+    totalSlots += span.n;
+  });
+
   const seats = [];
   rows.forEach((row) => {
     const counts = studio.rowBlocks?.[row.letter] || studio.blocks;
@@ -69,13 +77,15 @@ export function buildLayout(studio) {
       let offset = ((span.n - nn) * sw) / 2;
       if (counts.length > 1 && k === 0) offset = (span.n - nn) * sw;
       if (counts.length > 1 && k === counts.length - 1) offset = 0;
+      const firstSlot = slotBase[k] + Math.round(offset / sw);
       for (let j = 0; j < nn; j++) {
-        rowSeats.push({ x: span.x0 + offset + (j + 0.5) * sw, block: k, edgeLeft: j === 0, edgeRight: j === nn - 1 });
+        rowSeats.push({ x: span.x0 + offset + (j + 0.5) * sw, slot: firstSlot + j, block: k, edgeLeft: j === 0, edgeRight: j === nn - 1 });
       }
     });
-    const N = rowSeats.length;
+    const N = studio.fixedNumbers ? totalSlots : rowSeats.length;
     rowSeats.forEach((s, idx) => {
-      const num = studio.numbering === 'rtl' ? N - idx : idx + 1;
+      const pos = studio.fixedNumbers ? s.slot : idx;
+      const num = studio.numbering === 'rtl' ? N - pos : pos + 1;
       const seat = {
         id: `${row.letter}${num}`,
         row: row.letter,
