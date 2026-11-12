@@ -13,14 +13,25 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css">
-  <link rel="modulepreload" href="vendor/three/three.module.min.js">
+  <!-- versi:mulai — dibuat otomatis oleh tools/versi.mjs, jangan diedit manual -->
+  <link rel="stylesheet" href="css/style.css?v=fa8459dc">
   <script type="importmap">
-    { "imports": {
-        "three": "./vendor/three/three.module.min.js",
-        "three/addons/": "./vendor/three/addons/"
-    } }
+  {
+    "imports": {
+      "three": "./vendor/three/three.module.min.js?v=2992ecd7",
+      "three/addons/geometries/RoundedBoxGeometry.js": "./vendor/three/addons/geometries/RoundedBoxGeometry.js?v=8b62a048",
+      "three/addons/lights/RectAreaLightUniformsLib.js": "./vendor/three/addons/lights/RectAreaLightUniformsLib.js?v=b304570e",
+      "./js/cinemas.js": "./js/cinemas.js?v=b05ca452",
+      "./js/film.js": "./js/film.js?v=934906d6",
+      "./js/layout.js": "./js/layout.js?v=8065fd7b",
+      "./js/standar.js": "./js/standar.js?v=464dfd99",
+      "./js/viewer.js": "./js/viewer.js?v=e4041551",
+      "./js/walker.js": "./js/walker.js?v=ac4dfe80"
+    }
+  }
   </script>
+  <link rel="modulepreload" href="vendor/three/three.module.min.js?v=2992ecd7">
+  <!-- versi:selesai -->
 </head>
 <body>
   <header class="top">
@@ -177,6 +188,6 @@
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-  <script type="module" src="js/main.js"></script>
+  <script type="module" src="js/main.js?v=6198435e"></script>
 </body>
 </html>

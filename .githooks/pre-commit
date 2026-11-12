@@ -1,0 +1,6 @@
+#!/bin/sh
+# Perbarui nomor versi CSS & JavaScript di index.html sebelum setiap commit,
+# supaya semua perangkat (termasuk iPhone) langsung memuat versi terbaru.
+command -v node >/dev/null 2>&1 || exit 0
+node tools/versi.mjs >/dev/null || exit 1
+git add index.html

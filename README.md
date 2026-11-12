@@ -68,9 +68,19 @@ klik dua kali tidak bisa, karena modul JavaScript butuh server.)
 Website di-hosting gratis di GitHub Pages. Setelah mengubah file:
 
 ```
+node tools/versi.mjs
 git add -A
 git commit -m "Perbarui data bioskop"
 git push
 ```
 
 Website akan diperbarui otomatis dalam 1–2 menit.
+
+`node tools/versi.mjs` memberi nomor versi (hash isi file) ke CSS dan
+JavaScript di `index.html`. Tanpa langkah ini, HP (terutama Safari di iPhone)
+bisa tetap menampilkan versi lama karena menyimpan file di cache. Agar langkah
+ini berjalan otomatis setiap commit, aktifkan sekali:
+
+```
+git config core.hooksPath .githooks
+```
